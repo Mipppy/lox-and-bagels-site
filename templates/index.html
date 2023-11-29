@@ -5,5 +5,7 @@
 {% endblock %}
 
 {% block main %}
-    <h1 class="load">Welcome back, {{ username | safe }}</h1>
+    {% if session["user_id"] %}
+        <h1 class="load">Welcome back, {{ username | safe }}</h1>
+    {% endif %}
 {% endblock %}

@@ -3,11 +3,11 @@ from cs50 import SQL
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
-# import os, stripe
-# stripe.api_key = os.environ['STRIPE_SECRET_KEY']
+import os, stripe
+from .helpers import *
 
+stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
-
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
@@ -39,9 +39,15 @@ def after_request(response):
 
 @app.route('/')
 def index():
-   username = db.execute("SELECT username FROM users WHERE id = ?", session["user_id"])
-   return render_template("index.html", username=username[0]['username'])
+    return render_template("index.html")
  
+
+@app.route("/home")
+@login_required
+def home():
+    username = db.execute("SELECT username FROM users WHERE id = ?", session["user_id"])
+    return render_template("index.html", username=username[0]['username'])
+
 @app.route('/register', methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -103,6 +109,16 @@ def login():
     else:
         return render_template("login.html")
 
+@app.route("/menu", methods=["GET", "POST"])
+def menu():
+    if request.method == "POST":
+        if not session["user_Id"]:
+            return redirect("/login")
+        
+    else:
+        products = get_products()
+        return render_template("menu.html", products=products)
+
 @app.route("/logout")
 def logout():
     """Log user out"""
@@ -111,7 +127,9 @@ def logout():
     session.clear()
 
     # Redirect user to login form
+    flash("Successfully logged out!")
     return redirect("/")
+
 
 if __name__ == '__main__':
    app.run()

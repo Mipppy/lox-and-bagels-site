@@ -4,8 +4,6 @@ from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 import os, stripe
-from .helpers import *
-
 stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
 app = Flask(__name__)
@@ -117,6 +115,7 @@ def menu():
         
     else:
         products = get_products()
+        print(products)
         return render_template("menu.html", products=products)
 
 @app.route("/logout")
@@ -130,6 +129,9 @@ def logout():
     flash("Successfully logged out!")
     return redirect("/")
 
+def get_products():
+    products = db.execute("SELECT * FROM products")
+    return products
 
 if __name__ == '__main__':
    app.run()

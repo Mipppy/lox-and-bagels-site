@@ -1,9 +1,18 @@
 {% extends "layout.html" %}
 
 {% block title %}
-    Home Page
+    Menu
 {% endblock %}
 
 {% block main %}
-    
+    {% for index in products %}
+        <div class="load rounded" style="width: 200px; height: 200px; background-image: image('{{ index.image }}'); display: inline-block;">
+            <div class="container">
+                <div class="title text-center">
+                    <h2 class="text-primary">{{index.name}}</h2>
+                    <a href="/products/{{index.shortname}}" class="btn btn-success btn-lg">Order now</a>
+                </div>
+            </div>            
+        </div>
+    {% endfor %}
 {% endblock %}

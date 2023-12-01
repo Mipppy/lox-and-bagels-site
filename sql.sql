@@ -1,9 +1,12 @@
-DROP TABLE IF EXISTS products;
-CREATE TABLE products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    type TEXT NOT NULL,
-    price TEXT NOT NULL,
-    outofstock BOOLEAN NOT NULL
-)
+-- DROP TABLE IF EXISTS products;
+-- CREATE TABLE products (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     name TEXT NOT NULL,
+--     description TEXT NOT NULL,
+--     type TEXT NOT NULL,
+--     price TEXT NOT NULL,
+--     outofstock BOOLEAN NOT NULL,
+--     image TEXT NOT NULL,
+--     shortname TEXT NOT NULL
+-- );
+INSERT INTO products (name, description, type, price, outofstock, image, shortname) VALUES ('TEST PRODUCT', 'This is a test product! Made by tim :)', 'test', '$50000', 1, 'imageurl','test2');

@@ -3,6 +3,7 @@ from cs50 import SQL
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
+from werkzeug.exceptions import HTTPException
 import os, stripe
 stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
@@ -146,6 +147,16 @@ def product(product):
 @app.route('/cart', methods=["GET", "POST"])
 @login_required
 def cart():
-    None
+    cart = db.execute("SELECT * FROM CART WHERE user = ?", session["user_id"])
+    return render_template("cart.html", cart=cart)
+
+@app.errorhandler(HTTPException)
+def handle_exception(e):
+    error_info = {
+        "code": e.code,
+        "name": e.name,
+        "description": e.description,
+    }
+    return render_template("error.html", error_info=error_info), e.code
 if __name__ == '__main__':
    app.run()

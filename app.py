@@ -133,5 +133,21 @@ def get_products():
     products = db.execute("SELECT * FROM products")
     return products
 
+@app.route('/products/<string:product>', methods=['GET', 'POST'])
+def product(product):
+  if request.method == "POST":
+        product = request.form.get("product")
+        quanity = request.form.get("quanity")
+        modifiers = request.form.get("modifiers")
+        db.execute("INSERT INTO cart (user, product, quanity, modifiers) VALUES (?,?,?,?)", session["user_id"], product, quanity, modifiers)
+        return redirect("/cart")
+  else:
+        product_info = db.execute("SELECT * FROM products WHERE shortname = ?", product)
+        return render_template("product.html", product=product_info[0])
+
+@app.route('/cart', methods=["GET", "POST"])
+@login_required
+def cart():
+    None
 if __name__ == '__main__':
    app.run()

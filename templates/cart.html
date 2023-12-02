@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Home Page
+{% endblock %}
+
+{% block main %}
+<form method="post">
+    <button type="submit" name="checkout" class="btn btn-primary">Check out</button>
+</form>
+<h5></h5>
+<table class="table table-striped mt-3">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Modifiers</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in cart %}
+        <tr>
+            <th>{{product.product}}</th>
+            <th>{{product.quanity}}</th>
+            <th>{{product.price}}</th>
+            <th>{{product.modifiers}}</th>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

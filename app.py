@@ -138,7 +138,8 @@ def product(product):
         product = request.form.get("product")
         quanity = request.form.get("quanity")
         modifiers = request.form.get("modifiers")
-        db.execute("INSERT INTO cart (user, product, quanity, modifiers) VALUES (?,?,?,?)", session["user_id"], product, quanity, modifiers)
+        price = request.form.get("price")
+        db.execute("INSERT INTO cart (user, product, quanity, modifiers,price) VALUES (?,?,?,?,?)", session["user_id"], product, quanity, modifiers, price)
         return redirect("/cart")
   else:
         product_info = db.execute("SELECT * FROM products WHERE shortname = ?", product)
@@ -147,8 +148,11 @@ def product(product):
 @app.route('/cart', methods=["GET", "POST"])
 @login_required
 def cart():
-    cart = db.execute("SELECT * FROM CART WHERE user = ?", session["user_id"])
-    return render_template("cart.html", cart=cart)
+    if request.method == "POST":
+        None
+    else:
+        cart = db.execute("SELECT * FROM CART WHERE user = ?", session["user_id"])
+        return render_template("cart.html", cart=cart)
 
 @app.errorhandler(HTTPException)
 def handle_exception(e):

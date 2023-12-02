@@ -37,13 +37,12 @@ def after_request(response):
 
 @app.route('/')
 def index():
-    return render_template("index.html")
- 
+    try:
+        username = db.execute("SELECT username FROM users WHERE id = ?", session["user_id"])
+    except:
+        # not logged in
+        username = [{"username":""}]
 
-@app.route("/home")
-@login_required
-def home():
-    username = db.execute("SELECT username FROM users WHERE id = ?", session["user_id"])
     return render_template("index.html", username=username[0]['username'])
 
 @app.route('/register', methods=["GET", "POST"])
@@ -115,7 +114,6 @@ def menu():
         
     else:
         products = get_products()
-        print(products)
         return render_template("menu.html", products=products)
 
 @app.route("/logout")

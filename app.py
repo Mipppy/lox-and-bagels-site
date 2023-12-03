@@ -4,7 +4,7 @@ from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from werkzeug.exceptions import HTTPException
-import os, stripe
+import os, stripe, re
 stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
 app = Flask(__name__)
@@ -148,11 +148,40 @@ def product(product):
 @app.route('/cart', methods=["GET", "POST"])
 @login_required
 def cart():
+    cart = db.execute("SELECT * FROM CART WHERE user = ?", session["user_id"])
     if request.method == "POST":
-        None
+        price_total = 0
+        for index in cart:
+            price_total += int(re.sub("[^0-9.]", "", index["price"]))
+        stripe_payment_processing = stripe.checkout.Session.create(
+            line_items = [
+                {
+                    'price_data': {
+                        'product_data': {
+                            'name': 'Lox of Bagels Order'
+                        },
+                        'unit_amount': price_total,
+                        'currency': 'usd',
+                    },
+                    'quantity' : 1,
+                }
+            ],
+            payment_method_types=['card'],
+            mode='payment',
+            success_url=request.host_url + 'order?success=true',
+            cancel_url=request.host_url + 'order?success=',
+        )
+        return redirect(stripe_payment_processing.url)
     else:
-        cart = db.execute("SELECT * FROM CART WHERE user = ?", session["user_id"])
         return render_template("cart.html", cart=cart)
+
+@app.route('/order', methods=["GET"])
+@login_required
+def order():
+    success = request.args.get('success', default=False)
+    if success:
+        db.execute("DELETE FROM cart WHERE user = ?", session["user_id"])
+    return render_template("order.html", success=success)
 
 @app.errorhandler(HTTPException)
 def handle_exception(e):

@@ -14,7 +14,8 @@ Home Page
         <tr>
             <th>Product</th>
             <th>Quantity</th>
-            <th>Price</th>
+            <th>Unit Price</th>
+            <th>Total Price</th>
             <th>Modifiers</th>
         </tr>
     </thead>
@@ -24,6 +25,7 @@ Home Page
             <th>{{product.product}}</th>
             <th>{{product.quanity}}</th>
             <th>{{product.price}}</th>
+            <th>{{product.price * product.quanity}}</th>
             <th>{{product.modifiers}}</th>
         </tr>
         {% endfor %}

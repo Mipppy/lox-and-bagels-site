@@ -13,6 +13,12 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 db = SQL("sqlite:///sql.db")
 
+def usd(value):
+    value = value/100
+    return f"${value:,.2f}"
+
+app.jinja_env.filters["usd"] = usd
+
 def login_required(f):
     """
     Decorate routes to require login.
@@ -152,7 +158,7 @@ def cart():
     if request.method == "POST":
         price_total = 0
         for index in cart:
-            price_total += int(re.sub("[^0-9.]", "", index["price"]))
+            price_total += index.price
         stripe_payment_processing = stripe.checkout.Session.create(
             line_items = [
                 {
@@ -191,5 +197,6 @@ def handle_exception(e):
         "description": e.description,
     }
     return render_template("error.html", error_info=error_info), e.code
+
 if __name__ == '__main__':
    app.run()

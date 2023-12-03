@@ -18,11 +18,14 @@
 --     price INTEGER NOT NULL,
 --     user INTEGER REFERENCES users(id)
 -- );
--- DROP TABLE IF EXISTS users;
--- CREATE TABLE users (
---     id INTEGER PRIMARY KEY AUTOINCREMENT,
---     username TEXT NOT NULL,
---     hash TEXT NOT NULL
--- )
-DELETE FROM products WHERE name = 'Everything Bagel';
-INSERT INTO products (name, description,type,price,outofstock,image,shortname) VALUES ('Everything Bagel', 'A plain old everything bagel.  Who does not love it? The rich seeds and salt combined with homemade New York bagels make for the perfect breakfast','bagel',150,0,'https://live-aroma-joes-2020.imgix.net/wp-content/uploads/2021/01/Everything-Bagel-Sandwich.png?q=85&fit=crop&crop=faces&auto=format&w=259', 'everything_bagel')
+-- DELETE FROM products WHERE name = 'Everything Bagel';
+-- INSERT INTO products (name, description,type,price,outofstock,image,shortname) VALUES ('Onion Bagel', 'eeww yucky bagel','bagel',150,0,'https://www.newyorkerbagels.com/cdn/shop/files/onion-bagels-single-198_480x480.jpg?v=1696048368', 'onion_bagel')
+DROP TABLE IF EXISTS users;
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    firstname TEXT NOT NULL,
+    lastname TEXT NOT NULL,
+    email TEXT NOT NULL
+)

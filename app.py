@@ -4,13 +4,21 @@ from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from werkzeug.exceptions import HTTPException
-import os, stripe, re
+from flask_mail import Mail, Message
+import os, stripe, random, string
 stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
+app.config['MAIL_SERVER'] = "smtp.gmail.com"
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'loxofbagelsandmoor@gmail.com'
+app.config['MAIL_PASSWORD'] = 'glfp hkkk hbqw fkbe'
+app.config['MAIL_DEFAULT_SENDER'] = 'confirmation@loxofbagelsandmoor.com'
 Session(app)
+mail = Mail(app)
 db = SQL("sqlite:///sql.db")
 
 def usd(value):
@@ -64,6 +72,15 @@ def register():
         elif not request.form.get("confirmation"):
             flash("You must confirm your password!")
             return render_template("register.html")
+        elif not request.form.get("firstname"):
+            flash("Enter your first name!")
+            return render_template('register.html')
+        elif not request.form.get('lastname'):
+            flash("Enter your last name!")
+            return render_template("register.html")
+        elif not request.form.get("email"):
+            flash("Enter an email address!")
+            return render_template("register.html")    
         
         rows = db.execute("SELECT * FROM users WHERE username = ?", request.form.get("username"))
         if len(rows) == 1:
@@ -72,11 +89,30 @@ def register():
         if request.form.get("password") != request.form.get("confirmation"):
             flash("Passwords don't match!")
             return render_template("register.html")
-
-        db.execute("INSERT INTO users (username, hash) VALUES (?, ?)",request.form.get("username"),generate_password_hash(request.form.get("password")),)
-        return redirect("/")
+        
+        verification_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        session['verification_data'] = {'email': request.form.get("email"), 'code': verification_code, 'firstname': request.form.get("firstname"), 'username': request.form.get("username"), 'lastname': request.form.get("lastname"), 'password': request.form.get("password")}
+        send_email(request.form.get("email"), "Verification Code", verification_code)
+        # db.execute("INSERT INTO users (username, hash, firstname, lastname) VALUES (?, ?, ?, ?)",request.form.get("username"),generate_password_hash(request.form.get("password")), request.form.get("firstname"), request.form.get("lastname"))
+        return redirect("/verify")
     else:
         return render_template("register.html")
+    
+@app.route('/verify', methods=["GET", "POST"])
+def verify():
+    if request.method == "POST":
+        if not request.form.get("code"):
+            flash("Enter a code!")
+            return render_template("verify.html")
+        if request.form.get("code") == session['verification_data']['code']:
+            db.execute("INSERT INTO users (username, hash, firstname, lastname, email) VALUES (?, ?, ?, ?, ?)",session['verification_data']['username'],generate_password_hash(session['verification_data']['password']), session['verification_data']['firstname'], session['verification_data']['lastname'], session['verification_data']['email']) 
+            return redirect("/login")
+        else:
+            flash("Code does not match")
+            return render_template('verify.html')
+    else:
+        return render_template("verify.html")
+
 @app.route('/login', methods=["GET", "POST"])
 def login():
     """Log user in"""
@@ -95,7 +131,6 @@ def login():
         elif not request.form.get("password"):
             flash("Enter a password!")
             return render_template("login.html")
-
         # Query database for username
         rows = db.execute("SELECT * FROM users WHERE username = ?", request.form.get("username"))
 
@@ -158,7 +193,7 @@ def cart():
     if request.method == "POST":
         price_total = 0
         for index in cart:
-            price_total += index.price
+            price_total += (index['price'] * index['quanity'])
         stripe_payment_processing = stripe.checkout.Session.create(
             line_items = [
                 {
@@ -189,6 +224,14 @@ def order():
         db.execute("DELETE FROM cart WHERE user = ?", session["user_id"])
     return render_template("order.html", success=success)
 
+@app.route('/history', methods=["GET", "POST"])
+@login_required
+def history():
+    if request.method == "POST":
+        None
+    else:
+        return render_template("history.html")
+
 @app.errorhandler(HTTPException)
 def handle_exception(e):
     error_info = {
@@ -197,6 +240,15 @@ def handle_exception(e):
         "description": e.description,
     }
     return render_template("error.html", error_info=error_info), e.code
+
+def send_email(to, subject,code):
+    msg = Message(
+        subject,
+        recipients=[to],
+        html=f'<p>Your code is: </p> <br> <h1>{code}</h1>',
+        sender="confirmation@loxofbagelsandmoor.com",
+    )
+    mail.send(msg)
 
 if __name__ == '__main__':
    app.run()

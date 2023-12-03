@@ -24,8 +24,8 @@ Home Page
         <tr>
             <th>{{product.product}}</th>
             <th>{{product.quanity}}</th>
-            <th>{{product.price}}</th>
-            <th>{{product.price * product.quanity}}</th>
+            <th>{{product.price | usd}}</th>
+            <th>{{(product.price * product.quanity) | usd}}</th>
             <th>{{product.modifiers}}</th>
         </tr>
         {% endfor %}

@@ -239,6 +239,47 @@ def remove_from_cart():
     flash("Successfully removed from cart")
     return redirect("/cart")
 
+@app.route('/password_reset', methods=["GET", "POST"])
+def pwd_reset():
+    if request.method == "POST":
+        if not request.form.get("username"):
+            flash("You must provide a username!")
+            return render_template("register.html")
+        elif not request.form.get("password"):
+            flash("You must provide a password!")
+            return render_template("register.html")
+        elif not request.form.get("confirmation"):
+            flash("You must confirm your password!")
+            return render_template("register.html")
+        if request.form.get("password") != request.form.get("confirmation"):
+            flash("Passwords don't match!")
+            return render_template("register.html")
 
+        email = db.execute("SELECT email FROM users WHERE username = ?", request.form.get("username"))
+        if not email:
+            flash("Invalid account details")
+            return render_template("password_reset.html")
+        verification_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        session['verification_data'] = {'email': email, 'code': verification_code, 'username': request.form.get("username"), 'password': request.form.get("password")}
+        send_email(email[0]['email'], "Verify your new password", verification_code)
+        return redirect("/verify_new")
+    else:
+        return render_template("password_reset.html")
+
+@app.route("/verify_new", methods=["GET", "POST"])
+def new_pas_verify():
+    if request.method == "POST":
+        if not request.form.get("code"):
+            flash("Enter a code!")
+            return render_template("verify.html")
+        if request.form.get("code") == session['verification_data']['code']:
+            db.execute("UPDATE users SET hash = ? WHERE username = ?", generate_password_hash(session['verification_data']['password']), session['verification_data']['username'])
+            return redirect("/login")
+        else:
+            flash("Code does not match")
+            return render_template('verify.html')
+    else:
+        email = session['verification_data']['email']
+        return render_template("verify_new_pwd.html",email=email[0]['email'])
 if __name__ == '__main__':
    app.run()

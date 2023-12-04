@@ -2,9 +2,9 @@ from flask import Flask, flash, redirect, render_template, request, session, g
 from cs50 import SQL
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
-from functools import wraps
 from werkzeug.exceptions import HTTPException
 from flask_mail import Mail, Message
+from helpers import *
 import os, stripe, random, string
 stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
@@ -21,26 +21,7 @@ Session(app)
 mail = Mail(app)
 db = SQL("sqlite:///sql.db")
 
-def usd(value):
-    value = value/100
-    return f"${value:,.2f}"
-
 app.jinja_env.filters["usd"] = usd
-
-def login_required(f):
-    """
-    Decorate routes to require login.
-
-    http://flask.pocoo.org/docs/0.12/patterns/viewdecorators/
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if session.get("user_id") is None:
-            return redirect("/login")
-        return f(*args, **kwargs)
-    return decorated_function
-
-
 
 @app.after_request
 def after_request(response):
@@ -53,12 +34,13 @@ def after_request(response):
 @app.route('/')
 def index():
     try:
-        username = db.execute("SELECT username FROM users WHERE id = ?", session["user_id"])
+        username = db.execute("SELECT firstname,lastname FROM users WHERE id = ?", session["user_id"])
+        username = username[0]['firstname'] + " " + username[0]['lastname']
     except:
         # not logged in
-        username = [{"username":""}]
+        username = ""
 
-    return render_template("index.html", username=username[0]['username'])
+    return render_template("index.html", username=username)
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
@@ -249,6 +231,14 @@ def send_email(to, subject,code):
         sender="confirmation@loxofbagelsandmoor.com",
     )
     mail.send(msg)
+
+@app.route('/removefromcart', methods=["POST"])
+def remove_from_cart():
+    product = request.form.get("productid")
+    db.execute("DELETE FROM cart WHERE user = ? AND product = ?", session["user_id"], product)
+    flash("Successfully removed from cart")
+    return redirect("/cart")
+
 
 if __name__ == '__main__':
    app.run()

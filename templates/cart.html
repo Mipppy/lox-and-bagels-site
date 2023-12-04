@@ -27,6 +27,15 @@ Home Page
             <th>{{product.price | usd}}</th>
             <th>{{(product.price * product.quanity) | usd}}</th>
             <th>{{product.modifiers}}</th>
+            <th>
+                <form method="post" title="Remove from cart" action="/removefromcart">
+                    <input type="hidden" name="product" value="{{ product }}">
+                    <input type="hidden" name="productid" value="{{ product.product }}">
+                    <button type="submit" class="btn btn-danger pt-1 pl-3 pr-3">
+                        <span style="font-size: 1em;">&times;</span>
+                    </button>
+                </form>                             
+            </th>
         </tr>
         {% endfor %}
     </tbody>

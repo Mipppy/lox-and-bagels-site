@@ -281,5 +281,29 @@ def new_pas_verify():
     else:
         email = session['verification_data']['email']
         return render_template("verify_new_pwd.html",email=email[0]['email'])
+    
+@app.route("/user_reset", methods=["GET", "POST"])
+def user_reset():
+    if request.method == "POST":
+        if not request.form.get("email"):
+            flash("You must provide a email!")
+            return render_template("user_reset.html")
+        elif not request.form.get("password"):
+            flash("You must provide a password!")
+            return render_template("user_reset.html")
+        pwd = db.execute("SELECT hash FROM users WHERE email = ?", request.form.get("email"))
+        userinput = str(request.form.get("password"))
+        print(pwd)
+        if not check_password_hash(pwd[0]['hash'],userinput):
+            flash("Password is incorrect!")
+            return render_template("user_reset.html")
+        email = request.form.get("email")
+        username = db.execute("SELECT username FROM users WHERE email = ?", email)
+        username = username[0]['username']
+        send_email(email, "Your username:", username)
+        return redirect("/login")
+    else:
+        return render_template("user_reset.html")
+  
 if __name__ == '__main__':
    app.run()

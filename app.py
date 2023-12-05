@@ -6,6 +6,7 @@ from werkzeug.exceptions import HTTPException
 from flask_mail import Mail, Message
 from helpers import *
 import os, stripe, random, string
+from datetime import datetime
 stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
 app = Flask(__name__)
@@ -20,7 +21,7 @@ app.config['MAIL_DEFAULT_SENDER'] = 'confirmation@loxofbagelsandmoor.com'
 Session(app)
 mail = Mail(app)
 db = SQL("sqlite:///sql.db")
-
+endpoint_secret = 'whsec_fd1c125e6aa814b582e69f0295f7b5d74887e719567af9aab4e77d825493b1e3'
 app.jinja_env.filters["usd"] = usd
 
 @app.after_request
@@ -173,6 +174,7 @@ def product(product):
 def cart():
     cart = db.execute("SELECT * FROM CART WHERE user = ?", session["user_id"])
     if request.method == "POST":
+        encoder = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
         price_total = 0
         for index in cart:
             price_total += (index['price'] * index['quanity'])
@@ -191,9 +193,10 @@ def cart():
             ],
             payment_method_types=['card'],
             mode='payment',
-            success_url=request.host_url + 'order?success=true',
-            cancel_url=request.host_url + 'order?success=',
+            success_url=request.host_url + f'order?key={generate_password_hash(encoder)}&success=true',
+            cancel_url=request.host_url + f'order?key=&success=',
         )
+        session["stripeURL"] = encoder
         return redirect(stripe_payment_processing.url)
     else:
         return render_template("cart.html", cart=cart)
@@ -202,8 +205,16 @@ def cart():
 @login_required
 def order():
     success = request.args.get('success', default=False)
+    cart = db.execute("SELECT * FROM CART WHERE user = ?", session["user_id"])
+
+    if check_password_hash(request.args.get('key', default=""),session['stripeURL']):
+        id = random.randint(-9999999,99999999)
+        print(id)
+        for product in cart:
+            db.execute("INSERT INTO orders (orderid, user, product,quantity,modifiers,completed,total,date) VALUES (?,?,?,?,?,?,?,?)", id,session["user_id"], product['product'], product['quanity'],product['modifiers'],0,product['price'], datetime.now())
     if success:
-        db.execute("DELETE FROM cart WHERE user = ?", session["user_id"])
+        db.execute("DELETE FROM cart WHERE user = ?", session["user_id"])        
+
     return render_template("order.html", success=success)
 
 @app.route('/history', methods=["GET", "POST"])

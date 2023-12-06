@@ -8,6 +8,10 @@
 <h1>Order: {{order_id}}</h1>
 <h5>Date: {{order_info[0].date}}</h5>
 <h4>Was picked up: <b>{{completed}}</b></h4>
+<form method="post">
+    <input hidden value="{{order_info}}" name="order_info">
+    <button type="submit" class="btn" title="Adds order into cart">Add to cart</button>
+</form>
 <table class="table table-striped mt-3">
     <thead>
         <tr>

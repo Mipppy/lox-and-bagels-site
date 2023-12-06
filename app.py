@@ -5,7 +5,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.exceptions import HTTPException
 from flask_mail import Mail, Message
 from helpers import *
-import os, stripe, random, string
+import os, stripe, random, string, json
 from datetime import datetime
 stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
@@ -236,7 +236,11 @@ def orders():
 @login_required
 def order_page(order_id):
     if request.method == "POST":
-        None
+        order_info = json.loads(request.form.get("order_info"))
+        print(order_info)
+        for product in order_info:
+            print(product)
+            db.execute("INSERT INTO cart (user, product, quanity, modifiers, price) VALUES (?, ?, ?, ?, ?)",session["user_id"], product["product"], product["quantity"], product["modifiers"], product["total"])
     else:
         try:
             order_info = db.execute("SELECT * FROM orders WHERE orderid = ? AND user = ?", order_id, session["user_id"])
@@ -258,13 +262,21 @@ def handle_exception(e):
     }
     return render_template("error.html", error_info=error_info), e.code
 
-def send_email(to, subject,code):
-    msg = Message(
+def send_email(to, subject,code,type_of):
+    if type_of == "username":
+        msg = Message(
+        subject,
+        recipients=[to],
+        html=f'<p>Your username is: </p> <br> <h1>{code}</h1>',
+        sender="confirmation@loxofbagelsandmoor.com",
+        )      
+    else:
+        msg = Message(
         subject,
         recipients=[to],
         html=f'<p>Your code is: </p> <br> <h1>{code}</h1>',
         sender="confirmation@loxofbagelsandmoor.com",
-    )
+        )
     mail.send(msg)
 
 @app.route('/removefromcart', methods=["POST"])
@@ -328,14 +340,13 @@ def user_reset():
             return render_template("user_reset.html")
         pwd = db.execute("SELECT hash FROM users WHERE email = ?", request.form.get("email"))
         userinput = str(request.form.get("password"))
-        print(pwd)
         if not check_password_hash(pwd[0]['hash'],userinput):
             flash("Password is incorrect!")
             return render_template("user_reset.html")
         email = request.form.get("email")
         username = db.execute("SELECT username FROM users WHERE email = ?", email)
         username = username[0]['username']
-        send_email(email, "Your username:", username)
+        send_email(email, "Your username:", username, "username")
         return redirect("/login")
     else:
         return render_template("user_reset.html")

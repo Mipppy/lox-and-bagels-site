@@ -159,6 +159,7 @@ def get_products():
 @app.route('/products/<string:product>', methods=['GET', 'POST'])
 def product(product):
   if request.method == "POST":
+        redirect("/cart")
         product = request.form.get("product")
         quanity = request.form.get("quanity")
         modifiers = request.form.get("modifiers")
@@ -208,22 +209,45 @@ def order():
     cart = db.execute("SELECT * FROM CART WHERE user = ?", session["user_id"])
 
     if check_password_hash(request.args.get('key', default=""),session['stripeURL']):
-        id = random.randint(-9999999,99999999)
-        print(id)
+        id = generate_unique_id()
         for product in cart:
             db.execute("INSERT INTO orders (orderid, user, product,quantity,modifiers,completed,total,date) VALUES (?,?,?,?,?,?,?,?)", id,session["user_id"], product['product'], product['quanity'],product['modifiers'],0,product['price'], datetime.now())
+    else:
+        success = False
     if success:
         db.execute("DELETE FROM cart WHERE user = ?", session["user_id"])        
 
     return render_template("order.html", success=success)
-
-@app.route('/history', methods=["GET", "POST"])
+@app.route('/orders', methods=["GET", "POST"])
 @login_required
-def history():
+def orders():
     if request.method == "POST":
         None
     else:
-        return render_template("history.html")
+        orders = db.execute("SELECT DISTINCT orderid,date FROM orders WHERE user = ? ORDER BY date DESC", session["user_id"])
+        completed = db.execute("SELECT completed FROM orders WHERE user = ?", session["user_id"])
+        if completed == 1:
+            completed = True
+        else:
+            completed = False
+        return render_template("orders.html", orders=orders, completed=completed)
+
+@app.route('/orders/<string:order_id>', methods=["GET", "POST"])
+@login_required
+def order_page(order_id):
+    if request.method == "POST":
+        None
+    else:
+        try:
+            order_info = db.execute("SELECT * FROM orders WHERE orderid = ? AND user = ?", order_id, session["user_id"])
+            completed = db.execute("SELECT completed FROM orders WHERE user = ? AND orderid = ?", session["user_id"], order_id)
+            if completed == 1:
+                completed = True
+            else:
+                completed = False
+            return render_template("order_page.html", order_info=order_info, order_id=order_id, completed=completed)
+        except Exception as e:
+            return redirect("/404")
 
 @app.errorhandler(HTTPException)
 def handle_exception(e):
@@ -246,7 +270,7 @@ def send_email(to, subject,code):
 @app.route('/removefromcart', methods=["POST"])
 def remove_from_cart():
     product = request.form.get("productid")
-    db.execute("DELETE FROM cart WHERE user = ? AND product = ?", session["user_id"], product)
+    db.execute("DELETE FROM cart WHERE user = ? AND id = ?", session["user_id"], product)
     flash("Successfully removed from cart")
     return redirect("/cart")
 

@@ -5,7 +5,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.exceptions import HTTPException
 from flask_mail import Mail, Message
 from helpers import *
-import os, stripe, random, string, json
+import os, stripe, random, string, sys, io
 from datetime import datetime
 stripe.api_key = os.environ['STRIPE_SECRET_KEY']
 DATABASE = 'sql.db'
@@ -23,6 +23,10 @@ mail = Mail(app)
 db = SQL("sqlite:///sql.db")
 endpoint_secret = 'whsec_fd1c125e6aa814b582e69f0295f7b5d74887e719567af9aab4e77d825493b1e3'
 app.jinja_env.filters["usd"] = usd
+
+
+# get console for admin page
+
 
 @app.after_request
 def after_request(response):
@@ -42,7 +46,6 @@ def index():
         username = ""
 
     return render_template("index.html", username=username)
-
 @app.route('/register', methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -75,8 +78,7 @@ def register():
         
         verification_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         session['verification_data'] = {'email': request.form.get("email"), 'code': verification_code, 'firstname': request.form.get("firstname"), 'username': request.form.get("username"), 'lastname': request.form.get("lastname"), 'password': request.form.get("password")}
-        send_email(request.form.get("email"), "Verification Code", verification_code)
-        # db.execute("INSERT INTO users (username, hash, firstname, lastname) VALUES (?, ?, ?, ?)",request.form.get("username"),generate_password_hash(request.form.get("password")), request.form.get("firstname"), request.form.get("lastname"))
+        send_email(request.form.get("email"), "Verification Code", verification_code, "nothing :D")
         return redirect("/verify")
     else:
         return render_template("register.html")
@@ -186,7 +188,7 @@ def cart():
                         'product_data': {
                             'name': 'Lox of Bagels Order'
                         },
-                        'unit_amount': price_total,
+                        'unit_amount': int(price_total * 1.07),
                         'currency': 'usd',
                     },
                     'quantity' : 1,
@@ -200,7 +202,11 @@ def cart():
         session["stripeURL"] = encoder
         return redirect(stripe_payment_processing.url)
     else:
-        return render_template("cart.html", cart=cart)
+        total_price = 0
+        for product in cart:
+            total_price += product["price"] * product["quanity"]
+        fees_total_price = total_price * 1.07
+        return render_template("cart.html", cart=cart, total_price=total_price, fees_total_price=fees_total_price)
 
 @app.route('/order', methods=["GET"])
 @login_required
@@ -217,12 +223,28 @@ def order():
     if success:
         db.execute("DELETE FROM cart WHERE user = ?", session["user_id"])        
 
-    return render_template("order.html", success=success)
+    active_orders = db.execute("SELECT * FROM orders WHERE completed = ?", 0)
+    range1_minutes = len(active_orders) * 5
+    range2_minutes = len(active_orders) * 8
+    range2_hours = range2_minutes // 60
+    range2_minutes %= 60
+    range1_hours = range1_minutes // 60
+    range1_minutes %= 60
+
+    range1 = f"{range1_hours} hours {range1_minutes} minutes"
+    range2 = f"{range2_hours} hours {range2_minutes} minutes"
+    range = f"{range1} - {range2}"
+    return render_template("order.html", success=success, range=range)
 @app.route('/orders', methods=["GET", "POST"])
 @login_required
 def orders():
     if request.method == "POST":
-        None
+        order_id = request.form.get("product")
+        order_data = db.execute("SELECT * FROM orders WHERE orderid = ? AND user = ?", order_id, session["user_id"])
+        for product in order_data:
+            db.execute("INSERT INTO cart (user, product, quanity, modifiers, price) VALUES (?, ?, ?, ?, ?)",session["user_id"], product["product"], product["quantity"], product["modifiers"], product["total"])
+        flash(f'Successfully added order: {order_id} to your cart!')
+        return redirect("/orders")
     else:
         orders = db.execute("SELECT DISTINCT orderid,date FROM orders WHERE user = ? ORDER BY date DESC", session["user_id"])
         completed = db.execute("SELECT completed FROM orders WHERE user = ?", session["user_id"])
@@ -236,11 +258,12 @@ def orders():
 @login_required
 def order_page(order_id):
     if request.method == "POST":
-        order_info = json.loads(request.form.get("order_info"))
-        print(order_info)
-        for product in order_info:
-            print(product)
+        order_info = request.form.get("order_info")
+        list_of_products = list(eval(order_info))
+        for product in list_of_products:
             db.execute("INSERT INTO cart (user, product, quanity, modifiers, price) VALUES (?, ?, ?, ?, ?)",session["user_id"], product["product"], product["quantity"], product["modifiers"], product["total"])
+        flash(f'Successfully added order: {order_id} to your cart!')
+        return redirect("/orders")
     else:
         try:
             order_info = db.execute("SELECT * FROM orders WHERE orderid = ? AND user = ?", order_id, session["user_id"])
@@ -308,7 +331,7 @@ def pwd_reset():
             return render_template("password_reset.html")
         verification_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         session['verification_data'] = {'email': email, 'code': verification_code, 'username': request.form.get("username"), 'password': request.form.get("password")}
-        send_email(email[0]['email'], "Verify your new password", verification_code)
+        send_email(email[0]['email'], "Verify your new password", verification_code, "nothing again :D")
         return redirect("/verify_new")
     else:
         return render_template("password_reset.html")
@@ -350,6 +373,28 @@ def user_reset():
         return redirect("/login")
     else:
         return render_template("user_reset.html")
-  # w
+
+@app.route("/superuser_login/admin", methods=["GET", "POST"])
+@login_required
+def admin_login():
+    if request.method == "POST":
+        try:
+            passkey = "1981"
+            user_passkey = request.form.get("passkey")
+            if passkey != user_passkey:
+                flash("You aren't supposed to be here!")
+                return redirect("/404")
+            logged_in_user = db.execute("SELECT username FROM users WHERE id = ?", session["user_id"])
+            if logged_in_user[0]['username'] != "lox admin":
+                flash("I don't know how you got the passkey, but there's one more step! :D try harder")
+                return redirect("/404")
+            
+
+            return render_template("admin_home.html")
+        except Exception as e:
+            return redirect("/404")
+    else:
+        return render_template("admin_login.html")
+
 if __name__ == '__main__':
-   app.run()
+  app.run()

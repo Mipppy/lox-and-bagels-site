@@ -30,3 +30,9 @@ def generate_unique_id():
 								is_id_unique = True
 		return id
 
+def check_admin(user):
+	logged_in_user = db.execute("SELECT username FROM users WHERE id = ?", session["user_id"])
+	if logged_in_user[0]['username'] != "lox admin":
+		return None
+	else:
+		return True

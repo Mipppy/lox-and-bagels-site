@@ -42,4 +42,32 @@
 --   date TEXT NOT NULL
 -- )
 -- INSERT INTO products (name, description,type,price,outofstock,image,shortname) VALUES ('Onion Bagel', 'eeww yucky bagel','bagel',0,0,'https://www.newyorkerbagels.com/cdn/shop/files/onion-bagels-single-198_480x480.jpg?v=1696048368', 'stupid')
-SELECT * FROM orders
+-- DROP TABLE IF EXISTS all_time_site_data;
+-- CREATE TABLE all_time_site_data (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
+--   sign_ins INTEGER NOT NULL,
+--   site_views INTEGER NOT NULL,
+--   orders_placed INTEGER NOT NULL,
+--   accounts_created INTEGER NOT NULL,
+--   total_sales INTEGER NOT NULL
+-- );
+-- -- INSERT INTO all_time_site_data (sign_ins, site_views, orders_placed, accounts_created, total_sales) VALUES (0, 0, 0, 0, 0)
+-- DROP TABLE IF EXISTS users;
+-- CREATE TABLE users (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     name TEXT NOT NULL,
+--     hash TEXT NOT NULL,
+--     email TEXT NOT NULL
+-- )
+-- SELECT * FROM users
+-- DELETE FROM users
+-- DROP TABLE IF EXISTS registers;
+-- CREATE TABLE registers (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     email TEXT NOT NULL,
+--     code TEXT NOT NULL,
+--     timestamp TEXT NOT NULL,
+--     password TEXT NOT NULL,
+--     name TEXT NOT NULL
+-- )
+DELETE FROM registers

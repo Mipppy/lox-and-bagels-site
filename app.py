@@ -39,8 +39,8 @@ def after_request(response):
 @app.route('/')
 def index():
     try:
-        username = db.execute("SELECT firstname,lastname FROM users WHERE id = ?", session["user_id"])
-        username = username[0]['firstname'] + " " + username[0]['lastname']
+        username = db.execute("SELECT name FROM users WHERE id = ?", session["user_id"])
+        username = username[0]['name']
     except:
         # not logged in
         username = ""
@@ -49,8 +49,8 @@ def index():
 @app.route('/register', methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        if not request.form.get("username"):
-            flash("You must provide a username!")
+        if not request.form.get("name"):
+            flash("You must provide a name!")
             return render_template("register.html")
         elif not request.form.get("password"):
             flash("You must provide a password!")
@@ -58,26 +58,27 @@ def register():
         elif not request.form.get("confirmation"):
             flash("You must confirm your password!")
             return render_template("register.html")
-        elif not request.form.get("firstname"):
-            flash("Enter your first name!")
-            return render_template('register.html')
-        elif not request.form.get('lastname'):
-            flash("Enter your last name!")
-            return render_template("register.html")
         elif not request.form.get("email"):
             flash("Enter an email address!")
             return render_template("register.html")    
-        
-        rows = db.execute("SELECT * FROM users WHERE username = ?", request.form.get("username"))
-        if len(rows) == 1:
-            flash("Username taken!")
-            return render_template("register.html")
         if request.form.get("password") != request.form.get("confirmation"):
             flash("Passwords don't match!")
             return render_template("register.html")
+        if request.form.get("email") != request.form.get("confirmemail"):
+            flash("Emails don't match!")
+            return render_template("register.html")
         
+        emailBool = db.execute("SELECT email FROM users WHERE email = ?", request.form.get("email"))
+        if len(emailBool) == 1:
+            flash("An account with this email already exists!")
+            return render_template("register.html")
+        registersBool = db.execute("SELECT email FROM registers WHERE email = ?", request.form.get("email"))
+        if len(registersBool) == 1:
+            flash("An account with this email already exists!")
+            return render_template("register.html")
         verification_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        session['verification_data'] = {'email': request.form.get("email"), 'code': verification_code, 'firstname': request.form.get("firstname"), 'username': request.form.get("username"), 'lastname': request.form.get("lastname"), 'password': request.form.get("password")}
+        db.execute("INSERT INTO registers (email, password, code, timestamp,name) VALUES (?, ?, ?, ?,?)", request.form.get("email"), request.form.get("password"), verification_code, datetime.now(), request.form.get("name"))
+        session["neededForASecond"] = request.form.get("email")
         send_email(request.form.get("email"), "Verification Code", verification_code, "nothing :D")
         return redirect("/verify")
     else:
@@ -89,8 +90,10 @@ def verify():
         if not request.form.get("code"):
             flash("Enter a code!")
             return render_template("verify.html")
-        if request.form.get("code") == session['verification_data']['code']:
-            db.execute("INSERT INTO users (username, hash, firstname, lastname, email) VALUES (?, ?, ?, ?, ?)",session['verification_data']['username'],generate_password_hash(session['verification_data']['password']), session['verification_data']['firstname'], session['verification_data']['lastname'], session['verification_data']['email']) 
+        neededData = db.execute("SELECT email, password, name,code FROM registers WHERE email = ?", session["neededForASecond"])
+        session.pop("neededForASecond")
+        if request.form.get("code") == neededData[0]['code']:
+            db.execute("INSERT INTO users (name, hash, email) VALUES (?, ?, ?)",neededData[0]["name"], generate_password_hash(neededData[0]["password"]), neededData[0]["email"]) 
             return redirect("/login")
         else:
             flash("Code does not match")
@@ -108,7 +111,7 @@ def login():
     # User reached route via POST (as by submitting a form via POST)
     if request.method == "POST":
         # Ensure username was submitted
-        if not request.form.get("username"):
+        if not request.form.get("email"):
             flash("Enter a username!")
             return render_template("login.html")
 
@@ -117,7 +120,7 @@ def login():
             flash("Enter a password!")
             return render_template("login.html")
         # Query database for username
-        rows = db.execute("SELECT * FROM users WHERE username = ?", request.form.get("username"))
+        rows = db.execute("SELECT * FROM users WHERE email = ?", request.form.get("email"))
 
         # Ensure username exists and password is correct
         if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
@@ -374,7 +377,7 @@ def user_reset():
     else:
         return render_template("user_reset.html")
 
-@app.route("/superuser_login/admin", methods=["GET", "POST"])
+@app.route("/superuser/admin", methods=["GET", "POST"])
 @login_required
 def admin_login():
     if request.method == "POST":
@@ -385,16 +388,27 @@ def admin_login():
                 flash("You aren't supposed to be here!")
                 return redirect("/404")
             logged_in_user = db.execute("SELECT username FROM users WHERE id = ?", session["user_id"])
-            if logged_in_user[0]['username'] != "lox admin":
-                flash("I don't know how you got the passkey, but there's one more step! :D try harder")
+            if not check_admin(session["user_id"]):
                 return redirect("/404")
             
-
-            return render_template("admin_home.html")
+            active_orders = db.execute("SELECT * FROM orders WHERE completed = ? GROUP BY orderid", 0)
+            for user in active_orders:
+                user["user"] = db.execute("SELECT username FROM users WHERE id = ?", user["user"])
+            return render_template("admin_home.html", active_orders=active_orders)
         except Exception as e:
             return redirect("/404")
     else:
+        if not check_admin(session["user_id"]):
+            return redirect("/404")
         return render_template("admin_login.html")
+@app.route("/superuser/admin_site_data", methods=["POST"])
+def adminsitedata():
+    if not check_admin(session["user_id"]):
+        return redirect("/404")
+    site_data = db.execute("SELECT * FROM all_time_site_data")
+    render_template("admin_site_data.html", site_data=site_data[0])
+    return redirect("/superuser/admin")
+
 
 if __name__ == '__main__':
   app.run()
